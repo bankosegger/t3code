@@ -91,20 +91,35 @@ export function buildBootstrapInput(
   }
 
   // Include a contiguous suffix from newest to oldest, then reverse to chronological.
-  let includedNewestFirst: string[] = [];
+  // Joined-string length doesn't depend on block order, so the fitting count can be
+  // found with running totals instead of rebuilding the array and rejoining the full
+  // string on every block (which was O(n^2) on long transcripts).
+  const fixedLength =
+    BOOTSTRAP_PREAMBLE.length +
+    2 +
+    TRANSCRIPT_HEADER.length +
+    1 +
+    2 +
+    LATEST_PROMPT_HEADER.length +
+    1 +
+    latestPrompt.length;
+  let includedCount = 0;
+  let joinedLength = 0;
   for (const block of newestFirstBlocks) {
-    const nextNewestFirst = [...includedNewestFirst, block];
-    const nextChronological = nextNewestFirst.toReversed();
-    const omittedCount = newestFirstBlocks.length - nextChronological.length;
-    const transcriptBody =
+    const candidateJoinedLength = joinedLength + (includedCount > 0 ? 2 : 0) + block.length;
+    const candidateCount = includedCount + 1;
+    const omittedCount = newestFirstBlocks.length - candidateCount;
+    const bodyLength =
       omittedCount > 0
-        ? `${OMITTED_SUMMARY(omittedCount)}\n\n${nextChronological.join("\n\n")}`
-        : nextChronological.join("\n\n");
-    if (!finalizeWithPrompt(transcriptBody, latestPrompt, budget)) {
+        ? OMITTED_SUMMARY(omittedCount).length + 2 + candidateJoinedLength
+        : candidateJoinedLength;
+    if (fixedLength + bodyLength > budget) {
       break;
     }
-    includedNewestFirst = nextNewestFirst;
+    includedCount = candidateCount;
+    joinedLength = candidateJoinedLength;
   }
+  const includedNewestFirst = newestFirstBlocks.slice(0, includedCount);
 
   let includedChronological = includedNewestFirst.toReversed();
   while (true) {

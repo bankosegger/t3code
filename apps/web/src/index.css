@@ -2487,6 +2487,13 @@ code {
   animation: ultrathink-chroma-shift 10s linear infinite;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .ultrathink-frame::before,
+  .ultrathink-chroma {
+    animation: none;
+  }
+}
+
 @keyframes preview-loading-progress {
   from {
     transform: scaleX(0.04);
